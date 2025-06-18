@@ -1,19 +1,14 @@
 # Base image
-FROM python:3.10-slim
+FROM public.ecr.aws/lambda/python:3.10
 
 # Set working directory inside container
-WORKDIR /app
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+WORKDIR /var/task
 
 # Install system packages and Python dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN yum install -y \
     git \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && yum clean all
 
 # Copy requirements and install
 COPY requirements.txt .
