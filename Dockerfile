@@ -21,4 +21,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the main pipeline
-CMD ["python", "main.py"]
+CMD ["main.lambda_handler"]
