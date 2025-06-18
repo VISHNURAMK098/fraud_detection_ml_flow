@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 
-def get_logger(name, log_file="logs/train.log"):
+def get_logger(name, log_file="/tmp/logs/train.log"):
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
     logger = logging.getLogger(name)
