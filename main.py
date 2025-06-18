@@ -1,4 +1,3 @@
-from src.data_loader import load_csv_from_s3
 from src.preprocess import preprocess_data
 from src.train import train_model
 from src.logger import get_logger
@@ -10,12 +9,29 @@ import io
 
 logger = get_logger("fraud_detection")
 
+def send_metrics_to_cloudwatch(metrics, namespace="FraudDetectionModel"):
+    cloudwatch = boto3.client("cloudwatch")
+    
+    for key, value in metrics.items():
+        if isinstance(value, (int, float)):
+            logger.info(f"Sending {key}: {value} to CloudWatch.")
+            cloudwatch.put_metric_data(
+                Namespace=namespace,
+                MetricData=[
+                    {
+                        'MetricName': key,
+                        'Value': value,
+                        'Unit': 'None'  # You can use 'Percent' for accuracy if it's between 0–100
+                    }
+                ]
+            )
+
 def run_pipeline():
     logger.info("Starting fraud detection pipeline...")
 
     # Load data (local or from S3)
     s3 = boto3.client("s3")
-    obj = s3.get_object(Bucket="##add your bucket name", Key="upload/transaction_samples.csv")
+    obj = s3.get_object(Bucket="lambda-code-bucket-ddd", Key="upload/transaction_samples.csv")
     df = pd.read_csv(io.BytesIO(obj["Body"].read()))
     logger.info("Data loaded from S3.")
 
@@ -27,21 +43,24 @@ def run_pipeline():
     metrics = train_model(X_train, X_test, y_train, y_test, scaler, logger)
 
     # Save metrics to S3
-    s3 = boto3.client("s3")
     s3.put_object(
-        Bucket="your-bucket-name",
-        Key="metrics/metrics.json",
+        Bucket="lambda-code-bucket-ddd",
+        Key="model/metrics.json",
         Body=json.dumps(metrics),
         ContentType="application/json"
     )
     logger.info("Metrics uploaded to S3.")
 
+    # Push to CloudWatch
+    send_metrics_to_cloudwatch(metrics)
+    logger.info("Metrics pushed to CloudWatch.")
+
     return metrics
 
-def lambda_handler(event, context): # GET /?key=metrics/metrics.json
+def lambda_handler(event, context):
     try:
         s3 = boto3.client("s3")
-        obj = s3.get_object(Bucket="your-bucket-name", Key="metrics/metrics.json")
+        obj = s3.get_object(Bucket="lambda-code-bucket-ddd", Key="model/metrics.json")
         metrics = json.loads(obj["Body"].read().decode("utf-8"))
         return {
             "statusCode": 200,
